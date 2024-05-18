@@ -1,12 +1,11 @@
-
 from abc import ABCMeta, abstractmethod
 import cffi
 import os
 import numpy as np
-from pynq import Overlay, Xlnk
+from pynq import Overlay, allocate
 
 
-__author__ = "Sean Fox"
+__author__ = "Rana Shahzaib"
 
 
 class EKF(object):
@@ -20,7 +19,7 @@ class EKF(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, n, m, pval=0.5, qval=0.1, rval=20.0,
-                 bitstream=None, library=None, cacheable=0):
+                 bitstream=None, library=None, cacheable=False):
         """Initialize the EKF object.
 
         Parameters
@@ -39,22 +38,20 @@ class EKF(object):
             string identifier of the bitstream
         library : str
             string identifier of the C library
-        cacheable : int
-            Whether the buffers should be cacheable - defaults to 0
+        cacheable : bool
+            Whether the buffers should be cacheable - defaults to False
 
         """
         self.bitstream_name = bitstream
         self.overlay = Overlay(self.bitstream_name)
 
         self.library = library
-        self.xlnk = Xlnk()
-        self.xlnk.set_allocator_library(self.library)
 
         self._ffi = cffi.FFI()
         self.dlib = self._ffi.dlopen(self.library)
         self._ffi.cdef(self.ffi_interface)
 
-        # Whether to use sds_alloc or sds_alloc_non_cacheable
+        # Whether to use cacheable buffers
         self.cacheable = cacheable
 
         # No previous prediction noise covariance
@@ -126,17 +123,16 @@ class EKF(object):
         x: np.array
             Input numpy array, not necessarily in contiguous memory.
         dtype : type
-            Data type for the give numpy array.
+            Data type for the given numpy array.
 
         Returns
         -------
-        xlnk.cma_array
+        pynq.allocate
             Physically contiguous memory.
 
         """
         size = x.shape
-        data_buffer = self.xlnk.cma_array(shape=size, dtype=dtype,
-                                          cacheable=self.cacheable)
+        data_buffer = allocate(shape=size, dtype=dtype, cacheable=self.cacheable)
         np.copyto(data_buffer, x.astype(dtype), casting="unsafe")
         return data_buffer
 
@@ -150,11 +146,9 @@ class EKF(object):
 
         Your implementing class should define this method for the
         state-transition function f(x).
-        Your state-transition fucntion should return a NumPy array of n
-        elements representing the
-        new state, and a nXn NumPy array of elements representing the the
-        Jacobian of the function
-        with respect to the new state.
+        Your state-transition function should return a NumPy array of n
+        elements representing the new state, and a nXn NumPy array of elements
+        representing the Jacobian of the function with respect to the new state.
 
         """
         raise NotImplementedError("Method f() is not implemented.")
@@ -164,10 +158,9 @@ class EKF(object):
         """Abstract method for h(x)
 
         Your implementing class should define this method for the
-        observation function h(x), returning
-        a NumPy array of m elements, and a NumPy array of m x n elements
-        representing the Jacobian matrix
-        H of the observation function with respect to the observation.
+        observation function h(x), returning a NumPy array of m elements, and
+        a NumPy array of m x n elements representing the Jacobian matrix H
+        of the observation function with respect to the observation.
 
         """
         raise NotImplementedError("Method h() is not implemented.")
