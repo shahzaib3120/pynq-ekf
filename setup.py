@@ -67,10 +67,10 @@ setup(
           'rig',
           'pynq>=2.3'
     ],
-    url='https://github.com/sfox14/pynq-ekf',
+    url='https://github.com/shahzaib3120/pynq-ekf',
     license='BSD 3-Clause License',
-    author="Sean Fox",
-    author_email="sean.fox@sydney.edu.au",
+    author="Rana Shahzaib",
+    author_email="rrehman.bee21seecs@seecs.edu.pk",
     packages=find_packages(),
     package_data={
         '': ekf_data_files,
